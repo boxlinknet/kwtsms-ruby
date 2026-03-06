@@ -390,10 +390,6 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
-## License
-
-MIT License. See [LICENSE](LICENSE).
-
 ## Help & Support
 
 - **[kwtSMS Website](https://www.kwtsms.com)**: Official website
@@ -408,3 +404,7 @@ MIT License. See [LICENSE](LICENSE).
 - **[RubyGems](https://rubygems.org/gems/kwtsms)**: Package on RubyGems.org
 - **[GitHub](https://github.com/boxlinknet/kwtsms-ruby)**: Source code and issue tracker
 - **[Changelog](CHANGELOG.md)** | **[Contributing](CONTRIBUTING.md)** | **[Security](SECURITY.md)**
+
+## License
+
+MIT License. See [LICENSE](LICENSE).
