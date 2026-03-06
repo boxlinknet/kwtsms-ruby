@@ -298,12 +298,20 @@ module KwtSMS
 
       result = sms.send_sms(mobiles, message, sender: sender)
 
-      if result["result"] == "OK"
+      if result["result"] == "OK" || result["result"] == "PARTIAL"
         puts "Message sent successfully."
-        puts "  msg-id: #{result['msg-id']}" if result["msg-id"]
+        if result["bulk"]
+          puts "  Batches: #{result['batches']}"
+          puts "  msg-ids: #{result['msg-ids'].join(', ')}" if result["msg-ids"]
+        else
+          puts "  msg-id: #{result['msg-id']}" if result["msg-id"]
+        end
         puts "  Numbers: #{result['numbers']}" if result["numbers"]
         puts "  Points charged: #{result['points-charged']}" if result["points-charged"]
         puts "  Balance after: #{result['balance-after']}" if result["balance-after"]
+        if result["errors"] && !result["errors"].empty?
+          result["errors"].each { |e| $stderr.puts "  Batch #{e['batch']} error: #{e['code']} - #{e['description']}" }
+        end
       else
         $stderr.puts "Send failed: #{result['description']}"
         $stderr.puts "Action: #{result['action']}" if result["action"]

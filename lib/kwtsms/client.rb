@@ -21,7 +21,6 @@ module KwtSMS
   #   ok, balance, err = sms.verify
   #   result = sms.send_sms("96598765432", "Your OTP for MYAPP is: 123456")
   #   result = sms.send_sms("96598765432", "Hello", sender: "OTHER-ID")
-  #   report = sms.validate(["96598765432", "+96512345678"])
   #   balance = sms.balance
   class Client
     attr_reader :username, :sender_id, :test_mode, :log_file,
@@ -108,18 +107,6 @@ module KwtSMS
     def balance
       ok, bal, = verify
       ok ? bal : @cached_balance
-    end
-
-    # Get delivery status for a sent message via /report/.
-    #
-    # @param msg_id [String] The message ID returned by send_sms in result["msg-id"]
-    # @return [Hash] OK or ERROR hash with action guidance
-    def status(msg_id)
-      data = KwtSMS.api_request("report", creds.merge("msgid" => msg_id.to_s), @log_file)
-      KwtSMS.enrich_error(data)
-    rescue RuntimeError => e
-      { "result" => "ERROR", "code" => "NETWORK", "description" => e.message,
-        "action" => "Check your internet connection and try again." }
     end
 
     # List sender IDs registered on this account via /senderid/.

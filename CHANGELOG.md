@@ -15,7 +15,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `balance` : get current balance
   - `send_sms` : send SMS to one or more numbers
   - `send_with_retry` : send with automatic ERR028 retry
-  - `status` : get delivery report for a message
   - `senderids` : list registered sender IDs
   - `coverage` : list active country prefixes
   - `validate` : validate phone numbers
@@ -25,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `KwtSMS.validate_phone_input` : validate phone input with detailed error messages
   - `KwtSMS.clean_message` : clean SMS text (strip emojis, HTML, hidden chars, convert Arabic digits)
   - `KwtSMS.enrich_error` : add developer-friendly action messages to API errors
-- `KwtSMS::API_ERRORS` constant with all 33 kwtSMS error codes mapped to action messages
+- `KwtSMS::API_ERRORS` constant with all kwtSMS error codes mapped to action messages
 - Bulk send support: auto-batching for >200 numbers with ERR013 retry and backoff
 - Phone number deduplication before sending
 - JSONL logging with password masking

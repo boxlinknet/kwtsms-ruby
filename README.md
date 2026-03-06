@@ -6,7 +6,7 @@
 [![Ruby](https://img.shields.io/badge/Ruby-%3E%3D%202.7-red.svg)](https://www.ruby-lang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Ruby client for the [kwtSMS API](https://www.kwtsms.com). Send SMS, check balance, validate numbers, list sender IDs, check coverage, get delivery reports.
+Ruby client for the [kwtSMS API](https://www.kwtsms.com). Send SMS, check balance, validate numbers, list sender IDs, and check coverage.
 
 ## About kwtSMS
 
@@ -125,8 +125,6 @@ Response on success:
 }
 ```
 
-**Always save `msg-id` immediately after a successful send.** You need it for status checks and delivery reports.
-
 **Never call `balance` after `send_sms`.** The send response already includes your updated balance in `balance-after`.
 
 ### send_with_retry
@@ -135,15 +133,6 @@ Send with automatic retry on ERR028 (15-second rate limit).
 
 ```ruby
 result = sms.send_with_retry("96598765432", "Hello!", max_retries: 3)
-```
-
-### status
-
-Get delivery report for a message.
-
-```ruby
-result = sms.status("12345")  # pass the msg-id from send_sms
-# result["status"] => "DELIVERED", "FAILED", "PENDING", "REJECTED"
 ```
 
 ### senderids
@@ -192,7 +181,7 @@ KwtSMS.enrich_error({"result" => "ERROR", "code" => "ERR003"})
 # => adds "action" key with guidance
 
 # Access all error codes
-KwtSMS::API_ERRORS  # => Hash of all 30 error codes with action messages
+KwtSMS::API_ERRORS  # => Hash of all error codes with action messages
 ```
 
 ## Bulk Send (>200 Numbers)

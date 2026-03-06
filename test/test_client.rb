@@ -314,48 +314,6 @@ class TestClientSend < Minitest::Test
   end
 end
 
-class TestClientStatus < Minitest::Test
-  def setup
-    @client = KwtSMS::Client.new("user", "pass", log_file: "")
-  end
-
-  def test_status_success
-    stub_request(:post, "https://www.kwtsms.com/API/report/")
-      .to_return(
-        status: 200,
-        body: { "result" => "OK", "msg-id" => "123", "status" => "DELIVERED" }.to_json,
-        headers: { "Content-Type" => "application/json" }
-      )
-
-    result = @client.status("123")
-    assert_equal "OK", result["result"]
-    assert_equal "DELIVERED", result["status"]
-  end
-
-  def test_status_err020
-    stub_request(:post, "https://www.kwtsms.com/API/report/")
-      .to_return(
-        status: 200,
-        body: { "result" => "ERROR", "code" => "ERR020", "description" => "Not found" }.to_json,
-        headers: { "Content-Type" => "application/json" }
-      )
-
-    result = @client.status("999")
-    assert_equal "ERROR", result["result"]
-    assert result.key?("action")
-    assert_includes result["action"], "msg-id"
-  end
-
-  def test_status_network_error
-    stub_request(:post, "https://www.kwtsms.com/API/report/")
-      .to_timeout
-
-    result = @client.status("123")
-    assert_equal "ERROR", result["result"]
-    assert_equal "NETWORK", result["code"]
-  end
-end
-
 class TestClientSenderids < Minitest::Test
   def setup
     @client = KwtSMS::Client.new("user", "pass", log_file: "")

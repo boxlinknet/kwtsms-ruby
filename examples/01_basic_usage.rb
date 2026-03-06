@@ -48,7 +48,3 @@ puts "Valid: #{report['ok']}"
 puts "Errors: #{report['er']}"
 puts "Rejected: #{report['rejected']}"
 
-# Check delivery status
-# msg_id = result["msg-id"]  # from a previous send
-# delivery = sms.status(msg_id)
-# puts delivery.inspect

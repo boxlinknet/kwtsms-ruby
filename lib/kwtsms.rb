@@ -9,9 +9,7 @@
 #   ok, balance, err = sms.verify
 #   result = sms.send_sms("96598765432", "Your OTP is: 123456")
 #   result = sms.send_sms("96598765432", "Hello", sender: "MY-APP")
-#   report = sms.validate(["96598765432", "+96512345678"])
 #   balance = sms.balance
-#   delivery = sms.status(result["msg-id"])
 #
 # Utility functions:
 #   KwtSMS.normalize_phone("+965 9876 5432")

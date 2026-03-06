@@ -3,10 +3,10 @@
 require_relative "test_helper"
 
 class TestApiErrors < Minitest::Test
-  def test_all_33_error_codes_present
+  def test_all_error_codes_present
     expected_codes = %w[
       ERR001 ERR002 ERR003 ERR004 ERR005 ERR006 ERR007 ERR008 ERR009 ERR010
-      ERR011 ERR012 ERR013 ERR019 ERR020 ERR021 ERR022 ERR023 ERR024 ERR025
+      ERR011 ERR012 ERR013 ERR024 ERR025
       ERR026 ERR027 ERR028 ERR029 ERR030 ERR031 ERR032 ERR033 ERR_INVALID_INPUT
     ]
     expected_codes.each do |code|
