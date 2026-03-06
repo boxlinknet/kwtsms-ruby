@@ -351,6 +351,7 @@ See the [examples/](examples/) directory:
 
 | # | Example | Description |
 |---|---------|-------------|
+| 00 | [Raw API](examples/00_raw_api.rb) | Call all 7 endpoints directly — no gem needed |
 | 01 | [Basic Usage](examples/01_basic_usage.rb) | Connect, verify, send SMS, validate |
 | 02 | [OTP Flow](examples/02_otp_flow.rb) | Send OTP codes |
 | 03 | [Bulk SMS](examples/03_bulk_sms.rb) | Send to many recipients |

@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-03-07
+
+### Added
+
+- Raw API example (`examples/00_raw_api.rb`) — call all 7 kwtSMS endpoints using only Ruby stdlib, no gem needed
+- Step-by-step guide (`examples/00_raw_api.md`) with helper function reference, endpoints table, key rules, and going-live checklist
+
+### Removed
+
+- `/API/report/` status endpoint (does not exist)
+
+### Fixed
+
+- Bump actions/checkout v4 to v6, github/codeql-action v3 to v4
+
 ## [0.1.0] - 2026-03-06
 
 ### Added
@@ -33,4 +48,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive test suite: unit tests, mocked API tests, and real integration tests
 - Examples: basic usage, OTP flow, bulk SMS, Rails endpoint, error handling, production OTP
 
+[0.2.0]: https://github.com/boxlinknet/kwtsms-ruby/releases/tag/v0.2.0
 [0.1.0]: https://github.com/boxlinknet/kwtsms-ruby/releases/tag/v0.1.0

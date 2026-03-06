@@ -2,6 +2,7 @@
 
 | # | Example | Description |
 |---|---------|-------------|
+| 00 | [Raw API](00_raw_api.rb) | Call all 7 endpoints directly — no gem needed |
 | 01 | [Basic Usage](01_basic_usage.rb) | Connect, verify, send SMS, validate numbers |
 | 02 | [OTP Flow](02_otp_flow.rb) | Send OTP codes with proper formatting |
 | 03 | [Bulk SMS](03_bulk_sms.rb) | Send to many recipients with auto-batching |
@@ -10,6 +11,8 @@
 | 06 | [OTP Production](06-otp-production/) | Production OTP: rate limiting, CAPTCHA, Redis, Rails, Sinatra |
 
 ## Running Examples
+
+### With the gem (examples 01–06)
 
 1. Install the gem:
    ```bash
@@ -28,3 +31,13 @@
    ```bash
    ruby examples/01_basic_usage.rb
    ```
+
+### Without the gem (example 00)
+
+No installation needed. Edit the credentials at the top of the file and run:
+
+```bash
+ruby examples/00_raw_api.rb
+```
+
+See [00_raw_api.md](00_raw_api.md) for a step-by-step guide.
