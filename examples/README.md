@@ -18,8 +18,8 @@
 
 2. Create a `.env` file:
    ```ini
-   KWTSMS_USERNAME=your_api_user
-   KWTSMS_PASSWORD=your_api_pass
+   KWTSMS_USERNAME=ruby_username
+   KWTSMS_PASSWORD=ruby_password
    KWTSMS_SENDER_ID=YOUR-SENDER
    KWTSMS_TEST_MODE=1
    ```

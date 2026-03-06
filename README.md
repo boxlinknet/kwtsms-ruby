@@ -1,13 +1,28 @@
-# kwtsms
+# kwtSMS Ruby Client
 
 [![Gem Version](https://badge.fury.io/rb/kwtsms.svg)](https://rubygems.org/gems/kwtsms)
 [![CI](https://github.com/boxlinknet/kwtsms-ruby/actions/workflows/ci.yml/badge.svg)](https://github.com/boxlinknet/kwtsms-ruby/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Ruby](https://img.shields.io/badge/ruby-%3E%3D%202.7-red.svg)](https://www.ruby-lang.org/)
+[![Security Audit](https://github.com/boxlinknet/kwtsms-ruby/actions/workflows/codeql.yml/badge.svg)](https://github.com/boxlinknet/kwtsms-ruby/actions/workflows/codeql.yml)
+[![Ruby](https://img.shields.io/badge/Ruby-%3E%3D%202.7-red.svg)](https://www.ruby-lang.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Official Ruby client library for the [kwtSMS](https://www.kwtsms.com) SMS gateway. Send SMS, check balance, validate phone numbers, check delivery status, and manage sender IDs.
+Ruby client for the [kwtSMS API](https://www.kwtsms.com). Send SMS, check balance, validate numbers, list sender IDs, check coverage, get delivery reports.
 
-Zero external runtime dependencies. Uses Ruby standard library only.
+## About kwtSMS
+
+kwtSMS is a Kuwaiti SMS gateway trusted by top businesses to deliver messages anywhere in the world, with private Sender ID, free API testing, non-expiring credits, and competitive flat-rate pricing. Secure, simple to integrate, built to last. Open a free account in under 1 minute, no paperwork or payment required. [Click here to get started](https://www.kwtsms.com/signup/)
+
+## Prerequisites
+
+You need **Ruby** (>= 2.7) installed.
+
+### Check if Ruby is installed
+
+```bash
+ruby -v
+```
+
+If not installed, see [ruby-lang.org/en/downloads](https://www.ruby-lang.org/en/downloads/).
 
 ## Install
 
@@ -44,8 +59,8 @@ puts "msg-id: #{result['msg-id']}" if result["result"] == "OK"
 Create a `.env` file or set environment variables:
 
 ```ini
-KWTSMS_USERNAME=your_api_user
-KWTSMS_PASSWORD=your_api_pass
+KWTSMS_USERNAME=ruby_username
+KWTSMS_PASSWORD=ruby_password
 KWTSMS_SENDER_ID=YOUR-SENDER
 KWTSMS_TEST_MODE=1
 KWTSMS_LOG_FILE=kwtsms.log
@@ -55,8 +70,8 @@ KWTSMS_LOG_FILE=kwtsms.log
 
 ```ruby
 sms = KwtSMS::Client.new(
-  "your_api_user",
-  "your_api_pass",
+  "ruby_username",
+  "ruby_password",
   sender_id: "YOUR-SENDER",
   test_mode: true,
   log_file: "kwtsms.log"
@@ -315,7 +330,7 @@ Before going live:
 Every API call is logged to a JSONL file (default: `kwtsms.log`):
 
 ```json
-{"ts":"2026-03-06T12:00:00Z","endpoint":"send","request":{"username":"user","password":"***","mobile":"96598765432","message":"Hello"},"response":{"result":"OK","msg-id":"12345"},"ok":true,"error":null}
+{"ts":"2026-03-06T12:00:00Z","endpoint":"send","request":{"username":"ruby_username","password":"***","mobile":"96598765432","message":"Hello"},"response":{"result":"OK","msg-id":"12345"},"ok":true,"error":null}
 ```
 
 Passwords are always masked as `***`. Logging never crashes the main flow.

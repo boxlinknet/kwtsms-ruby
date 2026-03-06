@@ -22,7 +22,7 @@ Thank you for your interest in contributing to the kwtsms Ruby gem.
 
 4. Run integration tests (requires API credentials):
    ```bash
-   RUBY_USERNAME=your_user RUBY_PASSWORD=your_pass bundle exec rake test_integration
+   RUBY_USERNAME=ruby_username RUBY_PASSWORD=ruby_password bundle exec rake test_integration
    ```
 
 ## Branch Naming

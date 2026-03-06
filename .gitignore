@@ -32,7 +32,7 @@ Gemfile.lock
 *.swo
 *~
 
-# Claude / AI
+# Local config
 .claude/
 CLAUDE.md
 
