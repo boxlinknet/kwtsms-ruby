@@ -375,12 +375,17 @@ git push origin v0.1.0
 
 MIT License. See [LICENSE](LICENSE).
 
-## Links
+## Help & Support
 
-- [kwtSMS Website](https://www.kwtsms.com)
-- [kwtSMS API Best Practices](https://www.kwtsms.com/articles/sms-api-implementation-best-practices.html)
-- [RubyGems](https://rubygems.org/gems/kwtsms)
-- [GitHub](https://github.com/boxlinknet/kwtsms-ruby)
-- [Changelog](CHANGELOG.md)
-- [Contributing](CONTRIBUTING.md)
-- [Security](SECURITY.md)
+- **[kwtSMS Website](https://www.kwtsms.com)**: Official website
+- **[kwtSMS FAQ](https://www.kwtsms.com/faq/)**: Answers to common questions about credits, sender IDs, OTP, and delivery
+- **[kwtSMS Support](https://www.kwtsms.com/support.html)**: Open a support ticket or browse help articles
+- **[Contact kwtSMS](https://www.kwtsms.com/#contact)**: Reach the kwtSMS team directly for Sender ID registration and account issues
+- **[API Documentation (PDF)](https://www.kwtsms.com/doc/KwtSMS.com_API_Documentation_v41.pdf)**: kwtSMS REST API v4.1 full reference
+- **[API Best Practices](https://www.kwtsms.com/articles/sms-api-implementation-best-practices.html)**: Implementation best practices for the kwtSMS API
+- **[API Integration Test Checklist](https://www.kwtsms.com/articles/sms-api-integration-test-checklist.html)**: Pre-launch testing checklist
+- **[kwtSMS Dashboard](https://www.kwtsms.com/login/)**: Recharge credits, buy Sender IDs, view message logs, manage coverage
+- **[Other Integrations](https://www.kwtsms.com/integrations.html)**: Plugins and integrations for other platforms and languages
+- **[RubyGems](https://rubygems.org/gems/kwtsms)**: Package on RubyGems.org
+- **[GitHub](https://github.com/boxlinknet/kwtsms-ruby)**: Source code and issue tracker
+- **[Changelog](CHANGELOG.md)** | **[Contributing](CONTRIBUTING.md)** | **[Security](SECURITY.md)**
