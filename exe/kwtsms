@@ -67,45 +67,153 @@ module KwtSMS
       HELP
     end
 
-    def self.client
-      KwtSMS::Client.from_env
+    def self.client(env_file: ".env")
+      KwtSMS::Client.from_env(env_file: env_file)
+    rescue ArgumentError
+      if !File.exist?(env_file)
+        puts "No .env file found. Starting first-time setup...\n"
+        setup
+        KwtSMS::Client.from_env(env_file: env_file)
+      else
+        $stderr.puts "Error: credentials missing or incomplete in .env"
+        $stderr.puts "Run 'kwtsms setup' to fix."
+        exit 1
+      end
     end
 
-    def self.setup
-      puts "kwtsms setup wizard"
-      puts "=" * 40
-      print "API Username: "
-      username = $stdin.gets&.strip
-      print "API Password: "
-      password = if $stdin.respond_to?(:noecho)
-                   $stdin.noecho { $stdin.gets }&.strip.tap { puts }
-                 else
-                   $stdin.gets&.strip
-                 end
-      print "Sender ID (default: KWT-SMS): "
-      sender = $stdin.gets&.strip
-      sender = "KWT-SMS" if sender.nil? || sender.empty?
-      print "Test mode? (y/N): "
-      test = $stdin.gets&.strip&.downcase == "y"
+    def self.prompt(label, default: nil, secret: false)
+      if default && !default.empty?
+        print "#{label} [#{secret ? '****' : default}]: "
+      else
+        print "#{label}: "
+      end
 
-      env_content = <<~ENV
+      value = if secret && $stdin.respond_to?(:noecho)
+                $stdin.noecho { $stdin.gets }&.strip.tap { puts }
+              else
+                $stdin.gets&.strip
+              end
+
+      value = nil if value && value.empty?
+      value || default || ""
+    end
+
+    def self.setup(env_file: ".env")
+      puts "\n── kwtSMS Setup ──────────────────────────────────────────────────"
+      puts "Verifies your API credentials and creates a .env file."
+      puts "Press Enter to keep the value shown in brackets.\n\n"
+
+      existing = KwtSMS.load_env_file(env_file)
+
+      # Username
+      username = prompt("API Username", default: existing["KWTSMS_USERNAME"])
+
+      # Password (hidden)
+      password = prompt("API Password", default: existing["KWTSMS_PASSWORD"], secret: true)
+
+      if username.empty? || password.empty?
+        puts "\nError: username and password are required."
+        exit 1
+      end
+
+      # Verify credentials
+      print "\nVerifying credentials... "
+      $stdout.flush
+      begin
+        data = KwtSMS.api_request("balance", { "username" => username, "password" => password }, "")
+        if data["result"] != "OK"
+          err = data["description"] || data["code"] || "Unknown error"
+          puts "FAILED\nError: #{err}"
+          exit 1
+        end
+        puts "OK  (Balance: #{data['available'] || '?'})"
+      rescue RuntimeError => e
+        puts "FAILED\nError: #{e.message}"
+        exit 1
+      end
+
+      # Fetch Sender IDs
+      print "Fetching Sender IDs... "
+      $stdout.flush
+      senderids = []
+      begin
+        sid_data = KwtSMS.api_request("senderid", { "username" => username, "password" => password }, "")
+        senderids = sid_data["senderid"] || [] if sid_data["result"] == "OK"
+      rescue RuntimeError
+        # ignore
+      end
+
+      if senderids.any?
+        puts "OK"
+        puts "\nAvailable Sender IDs:"
+        senderids.each_with_index { |sid, i| puts "  #{i + 1}. #{sid}" }
+        default_sid = existing["KWTSMS_SENDER_ID"] || senderids[0]
+        choice = prompt("\nSelect Sender ID (number or name)", default: default_sid)
+        if choice.match?(/\A\d+\z/) && choice.to_i >= 1 && choice.to_i <= senderids.length
+          sender_id = senderids[choice.to_i - 1]
+        else
+          sender_id = choice
+        end
+      else
+        puts "(none returned)"
+        sender_id = prompt("Sender ID", default: existing["KWTSMS_SENDER_ID"] || "KWT-SMS")
+      end
+
+      # Send mode
+      current_mode = existing["KWTSMS_TEST_MODE"] || "1"
+      puts "\nSend mode:"
+      puts "  1. Test mode: messages queued but NOT delivered, no credits consumed  [default]"
+      puts "  2. Live mode: messages delivered to handsets, credits consumed"
+      mode_default = current_mode != "0" ? "1" : "2"
+      mode_choice = prompt("\nChoose", default: mode_default)
+      test_mode = mode_choice == "2" ? "0" : "1"
+
+      if test_mode == "1"
+        puts "  → Test mode selected."
+      else
+        puts "  → Live mode selected. Real messages will be sent and credits consumed."
+      end
+
+      # Log file
+      default_log = existing["KWTSMS_LOG_FILE"] || "kwtsms.log"
+      puts "\nAPI logging (every API call is logged to a file, passwords are always masked):"
+      puts "  Current: #{default_log}" unless default_log.empty?
+      puts '  Type "off" to disable logging.'
+      log_input = prompt("  Log file path", default: default_log)
+      if log_input.downcase == "off"
+        log_file_path = ""
+        puts "  → Logging disabled."
+      else
+        log_file_path = log_input
+      end
+
+      # Sanitize newlines
+      username      = username.tr("\r\n", "")
+      password      = password.tr("\r\n", "")
+      sender_id     = sender_id.tr("\r\n", "")
+      log_file_path = log_file_path.tr("\r\n", "")
+
+      # Write .env
+      content = <<~ENV
+        # kwtSMS credentials, generated by kwtsms setup
         KWTSMS_USERNAME=#{username}
         KWTSMS_PASSWORD=#{password}
-        KWTSMS_SENDER_ID=#{sender}
-        KWTSMS_TEST_MODE=#{test ? '1' : '0'}
-        KWTSMS_LOG_FILE=kwtsms.log
+        KWTSMS_SENDER_ID=#{sender_id}
+        KWTSMS_TEST_MODE=#{test_mode}
+        KWTSMS_LOG_FILE=#{log_file_path}
       ENV
 
-      File.write(".env", env_content)
-      puts "\n.env file created. Testing credentials..."
+      File.write(env_file, content)
+      File.chmod(0o600, env_file)
 
-      sms = KwtSMS::Client.new(username, password, sender_id: sender, test_mode: test)
-      ok, balance, err = sms.verify
-      if ok
-        puts "Credentials verified. Balance: #{balance} credits."
+      puts "\n  Saved to #{env_file}"
+      if test_mode == "1"
+        puts "  Mode: TEST: messages queued but not delivered (no credits consumed)"
       else
-        puts "Credential verification failed: #{err}"
+        puts "  Mode: LIVE: messages will be delivered and credits consumed"
       end
+      puts "  Run 'kwtsms setup' at any time to change settings."
+      puts "─────────────────────────────────────────────────────────────────\n"
     end
 
     def self.verify

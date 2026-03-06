@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 require_relative "test_helper"
+require "tempfile"
+require "stringio"
 load File.expand_path("../exe/kwtsms", __dir__)
 
 class TestCLIVersion < Minitest::Test
@@ -313,5 +315,206 @@ class TestCLIValidate < Minitest::Test
     assert_raises(SystemExit) do
       capture_io { KwtSMS::CLI.run(["validate"]) }
     end
+  end
+end
+
+class TestCLISetup < Minitest::Test
+  def setup
+    @original_env = ENV.to_h
+    @env_file = Tempfile.new(".env")
+    @env_file.close
+    # Remove so setup creates it fresh
+    File.delete(@env_file.path) if File.exist?(@env_file.path)
+  end
+
+  def teardown
+    ENV.replace(@original_env)
+    File.delete(@env_file.path) if File.exist?(@env_file.path)
+  end
+
+  def test_setup_creates_env_file
+    # Stub balance API (credential verification)
+    stub_request(:post, "https://www.kwtsms.com/API/balance/")
+      .to_return(
+        status: 200,
+        body: { "result" => "OK", "available" => "100.0", "purchased" => "200" }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    # Stub senderid API
+    stub_request(:post, "https://www.kwtsms.com/API/senderid/")
+      .to_return(
+        status: 200,
+        body: { "result" => "OK", "senderid" => ["KWT-SMS", "MY-APP"] }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    # Simulate user input: username, password, sender choice "1", mode "1", log "off"
+    input = StringIO.new("ruby_username\nruby_password\n1\n1\noff\n")
+    original_stdin = $stdin
+    $stdin = input
+
+    out, = capture_io { KwtSMS::CLI.setup(env_file: @env_file.path) }
+
+    assert File.exist?(@env_file.path)
+    content = File.read(@env_file.path)
+    assert_includes content, "KWTSMS_USERNAME=ruby_username"
+    assert_includes content, "KWTSMS_PASSWORD=ruby_password"
+    assert_includes content, "KWTSMS_SENDER_ID=KWT-SMS"
+    assert_includes content, "KWTSMS_TEST_MODE=1"
+    assert_includes out, "OK"
+    assert_includes out, "Saved to"
+
+    # Verify file permissions (600)
+    mode = File.stat(@env_file.path).mode & 0o777
+    assert_equal 0o600, mode
+  ensure
+    $stdin = original_stdin
+  end
+
+  def test_setup_shows_existing_defaults
+    # Create existing .env
+    File.write(@env_file.path, "KWTSMS_USERNAME=old_user\nKWTSMS_PASSWORD=old_pass\nKWTSMS_SENDER_ID=OLD-ID\n")
+
+    stub_request(:post, "https://www.kwtsms.com/API/balance/")
+      .to_return(
+        status: 200,
+        body: { "result" => "OK", "available" => "50.0", "purchased" => "100" }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    stub_request(:post, "https://www.kwtsms.com/API/senderid/")
+      .to_return(
+        status: 200,
+        body: { "result" => "OK", "senderid" => [] }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    # Press Enter for all defaults (empty input)
+    input = StringIO.new("\n\n\n\n\n")
+    original_stdin = $stdin
+    $stdin = input
+
+    out, = capture_io { KwtSMS::CLI.setup(env_file: @env_file.path) }
+
+    content = File.read(@env_file.path)
+    assert_includes content, "KWTSMS_USERNAME=old_user"
+    assert_includes content, "KWTSMS_PASSWORD=old_pass"
+    assert_includes content, "KWTSMS_SENDER_ID=OLD-ID"
+  ensure
+    $stdin = original_stdin
+  end
+
+  def test_setup_exits_on_empty_credentials
+    input = StringIO.new("\n\n")
+    original_stdin = $stdin
+    $stdin = input
+
+    assert_raises(SystemExit) do
+      capture_io { KwtSMS::CLI.setup(env_file: @env_file.path) }
+    end
+  ensure
+    $stdin = original_stdin
+  end
+
+  def test_setup_exits_on_auth_failure
+    stub_request(:post, "https://www.kwtsms.com/API/balance/")
+      .to_return(
+        status: 403,
+        body: { "result" => "ERROR", "code" => "ERR003", "description" => "Auth error" }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    input = StringIO.new("ruby_username\nruby_password\n")
+    original_stdin = $stdin
+    $stdin = input
+
+    assert_raises(SystemExit) do
+      capture_io { KwtSMS::CLI.setup(env_file: @env_file.path) }
+    end
+  ensure
+    $stdin = original_stdin
+  end
+
+  def test_setup_live_mode_selection
+    stub_request(:post, "https://www.kwtsms.com/API/balance/")
+      .to_return(
+        status: 200,
+        body: { "result" => "OK", "available" => "100.0", "purchased" => "200" }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    stub_request(:post, "https://www.kwtsms.com/API/senderid/")
+      .to_return(
+        status: 200,
+        body: { "result" => "OK", "senderid" => [] }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    # username, password, sender, mode "2" (live), log default
+    input = StringIO.new("ruby_username\nruby_password\nMY-APP\n2\n\n")
+    original_stdin = $stdin
+    $stdin = input
+
+    out, = capture_io { KwtSMS::CLI.setup(env_file: @env_file.path) }
+
+    content = File.read(@env_file.path)
+    assert_includes content, "KWTSMS_TEST_MODE=0"
+    assert_includes out, "Live mode selected"
+  ensure
+    $stdin = original_stdin
+  end
+
+  def test_setup_sender_id_by_number
+    stub_request(:post, "https://www.kwtsms.com/API/balance/")
+      .to_return(
+        status: 200,
+        body: { "result" => "OK", "available" => "100.0", "purchased" => "200" }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    stub_request(:post, "https://www.kwtsms.com/API/senderid/")
+      .to_return(
+        status: 200,
+        body: { "result" => "OK", "senderid" => ["KWT-SMS", "MY-APP", "BEST-ID"] }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    # username, password, pick sender "2" (MY-APP), mode default, log default
+    input = StringIO.new("ruby_username\nruby_password\n2\n\n\n")
+    original_stdin = $stdin
+    $stdin = input
+
+    out, = capture_io { KwtSMS::CLI.setup(env_file: @env_file.path) }
+
+    content = File.read(@env_file.path)
+    assert_includes content, "KWTSMS_SENDER_ID=MY-APP"
+  ensure
+    $stdin = original_stdin
+  end
+end
+
+class TestCLIAutoSetup < Minitest::Test
+  def setup
+    @original_env = ENV.to_h
+    ENV.delete("KWTSMS_USERNAME")
+    ENV.delete("KWTSMS_PASSWORD")
+  end
+
+  def teardown
+    ENV.replace(@original_env)
+  end
+
+  def test_client_exits_with_bad_env_file
+    # Create a .env with missing credentials
+    env_file = Tempfile.new(".env")
+    env_file.write("KWTSMS_USERNAME=\n")
+    env_file.close
+
+    assert_raises(SystemExit) do
+      capture_io { KwtSMS::CLI.client(env_file: env_file.path) }
+    end
+  ensure
+    env_file&.unlink
   end
 end
