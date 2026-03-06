@@ -144,4 +144,39 @@ class TestIntegration < Minitest::Test
     result = @client.send_sms("96598765432", "Test empty sender", sender: "")
     assert %w[OK ERROR].include?(result["result"])
   end
+
+  # -- bulk send 450 numbers --
+
+  def test_bulk_send_450_numbers_and_check_status
+    # Generate 450 numbers: 96599220000 - 96599220449
+    numbers = (0...450).map { |i| format("9659922%04d", i) }
+
+    assert_equal 450, numbers.length
+    assert_equal "96599220000", numbers.first
+    assert_equal "96599220449", numbers.last
+
+    result = @client.send_sms(numbers, "Bulk test 450 numbers from kwtsms-ruby")
+
+    assert result["bulk"], "Expected bulk send flag"
+    assert_equal 3, result["batches"], "Expected 3 batches (200+200+50)"
+
+    if result["result"] == "OK"
+      assert_equal 3, result["msg-ids"].length, "Expected 3 msg-ids"
+      assert_equal 450, result["numbers"]
+      assert result["balance-after"], "Expected balance-after in result"
+
+      # Check status of the first batch msg-id using built-in status()
+      msg_id = result["msg-ids"].first
+      status_result = @client.status(msg_id)
+
+      # status() always returns a hash with "result" key, never raises
+      assert_kind_of Hash, status_result
+      assert status_result.key?("result"), "Status should return a result key"
+    elsif result["result"] == "PARTIAL"
+      assert result["msg-ids"].length > 0, "Expected at least one msg-id"
+      assert result["errors"].length > 0, "Expected some errors in partial"
+    else
+      assert_equal "ERROR", result["result"]
+    end
+  end
 end
