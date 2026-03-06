@@ -30,7 +30,7 @@ class TestIntegration < Minitest::Test
   end
 
   def test_verify_wrong_credentials
-    bad_client = KwtSMS::Client.new("wrong_user", "wrong_pass", test_mode: true, log_file: "")
+    bad_client = KwtSMS::Client.new("ruby_wrong_user", "ruby_wrong_pass", test_mode: true, log_file: "")
     ok, balance, err = bad_client.verify
     refute ok
     assert_nil balance
