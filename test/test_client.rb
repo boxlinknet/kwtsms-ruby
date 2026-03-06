@@ -1,0 +1,498 @@
+# frozen_string_literal: true
+
+require_relative "test_helper"
+
+class TestClientInitialization < Minitest::Test
+  def test_creates_client_with_valid_credentials
+    client = KwtSMS::Client.new("user", "pass")
+    assert_equal "user", client.username
+    assert_equal "KWT-SMS", client.sender_id
+    refute client.test_mode
+  end
+
+  def test_creates_client_with_all_options
+    client = KwtSMS::Client.new("user", "pass", sender_id: "MY-APP", test_mode: true, log_file: "")
+    assert_equal "MY-APP", client.sender_id
+    assert client.test_mode
+    assert_equal "", client.log_file
+  end
+
+  def test_raises_on_empty_username
+    assert_raises(ArgumentError) { KwtSMS::Client.new("", "pass") }
+  end
+
+  def test_raises_on_nil_password
+    assert_raises(ArgumentError) { KwtSMS::Client.new("user", nil) }
+  end
+
+  def test_raises_on_nil_username
+    assert_raises(ArgumentError) { KwtSMS::Client.new(nil, "pass") }
+  end
+
+  def test_cached_balance_nil_initially
+    client = KwtSMS::Client.new("user", "pass")
+    assert_nil client.cached_balance
+    assert_nil client.cached_purchased
+  end
+end
+
+class TestClientFromEnv < Minitest::Test
+  def setup
+    @original_env = ENV.to_h
+  end
+
+  def teardown
+    ENV.replace(@original_env)
+  end
+
+  def test_from_env_with_env_vars
+    ENV["KWTSMS_USERNAME"] = "testuser"
+    ENV["KWTSMS_PASSWORD"] = "testpass"
+    ENV["KWTSMS_SENDER_ID"] = "MY-SENDER"
+    ENV["KWTSMS_TEST_MODE"] = "1"
+
+    client = KwtSMS::Client.from_env
+    assert_equal "testuser", client.username
+    assert_equal "MY-SENDER", client.sender_id
+    assert client.test_mode
+  end
+
+  def test_from_env_raises_without_credentials
+    ENV.delete("KWTSMS_USERNAME")
+    ENV.delete("KWTSMS_PASSWORD")
+    assert_raises(ArgumentError) { KwtSMS::Client.from_env(env_file: "/nonexistent/.env") }
+  end
+end
+
+class TestClientVerify < Minitest::Test
+  def setup
+    @client = KwtSMS::Client.new("user", "pass", log_file: "")
+  end
+
+  def test_verify_success
+    stub_request(:post, "https://www.kwtsms.com/API/balance/")
+      .to_return(
+        status: 200,
+        body: { "result" => "OK", "available" => "150.5", "purchased" => "200" }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    ok, balance, err = @client.verify
+    assert ok
+    assert_in_delta 150.5, balance
+    assert_nil err
+    assert_in_delta 150.5, @client.cached_balance
+    assert_in_delta 200.0, @client.cached_purchased
+  end
+
+  def test_verify_auth_error
+    stub_request(:post, "https://www.kwtsms.com/API/balance/")
+      .to_return(
+        status: 403,
+        body: { "result" => "ERROR", "code" => "ERR003", "description" => "Authentication error" }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    ok, balance, err = @client.verify
+    refute ok
+    assert_nil balance
+    assert_includes err, "Authentication error"
+    assert_includes err, "KWTSMS_USERNAME"
+  end
+
+  def test_verify_network_error
+    stub_request(:post, "https://www.kwtsms.com/API/balance/")
+      .to_timeout
+
+    ok, balance, err = @client.verify
+    refute ok
+    assert_nil balance
+    assert_includes err, "timed out"
+  end
+end
+
+class TestClientSend < Minitest::Test
+  def setup
+    @client = KwtSMS::Client.new("user", "pass", log_file: "")
+  end
+
+  def test_send_success
+    stub_request(:post, "https://www.kwtsms.com/API/send/")
+      .to_return(
+        status: 200,
+        body: {
+          "result" => "OK", "msg-id" => "12345", "numbers" => 1,
+          "points-charged" => 1, "balance-after" => 149
+        }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    result = @client.send_sms("96598765432", "Hello")
+    assert_equal "OK", result["result"]
+    assert_equal "12345", result["msg-id"]
+    assert_in_delta 149.0, @client.cached_balance
+  end
+
+  def test_send_with_invalid_phone
+    result = @client.send_sms("abc", "Hello")
+    assert_equal "ERROR", result["result"]
+    assert_equal "ERR_INVALID_INPUT", result["code"]
+    assert_includes result["description"], "no digits found"
+  end
+
+  def test_send_with_email
+    result = @client.send_sms("user@email.com", "Hello")
+    assert_equal "ERROR", result["result"]
+    assert_includes result["description"], "email address"
+  end
+
+  def test_send_with_empty_message_after_cleaning
+    result = @client.send_sms("96598765432", "\u{1F600}\u{1F601}")
+    assert_equal "ERROR", result["result"]
+    assert_equal "ERR009", result["code"]
+    assert_includes result["description"], "empty after cleaning"
+  end
+
+  def test_send_mixed_valid_invalid
+    stub_request(:post, "https://www.kwtsms.com/API/send/")
+      .to_return(
+        status: 200,
+        body: { "result" => "OK", "msg-id" => "123", "numbers" => 1,
+                "points-charged" => 1, "balance-after" => 99 }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    result = @client.send_sms(["96598765432", "abc"], "Hello")
+    assert_equal "OK", result["result"]
+    assert result.key?("invalid")
+    assert_equal 1, result["invalid"].length
+    assert_includes result["invalid"][0]["error"], "no digits found"
+  end
+
+  def test_send_err003
+    stub_request(:post, "https://www.kwtsms.com/API/send/")
+      .to_return(
+        status: 403,
+        body: { "result" => "ERROR", "code" => "ERR003", "description" => "Authentication error" }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    result = @client.send_sms("96598765432", "Hello")
+    assert_equal "ERROR", result["result"]
+    assert_equal "ERR003", result["code"]
+    assert result.key?("action")
+    assert_includes result["action"], "KWTSMS_USERNAME"
+  end
+
+  def test_send_err026
+    stub_request(:post, "https://www.kwtsms.com/API/send/")
+      .to_return(
+        status: 200,
+        body: { "result" => "ERROR", "code" => "ERR026", "description" => "Country not activated" }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    result = @client.send_sms("96598765432", "Hello")
+    assert_equal "ERROR", result["result"]
+    assert_includes result["action"], "country"
+  end
+
+  def test_send_err025
+    stub_request(:post, "https://www.kwtsms.com/API/send/")
+      .to_return(
+        status: 200,
+        body: { "result" => "ERROR", "code" => "ERR025", "description" => "Invalid phone" }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    result = @client.send_sms("96598765432", "Hello")
+    assert_equal "ERROR", result["result"]
+    assert_includes result["action"], "country code"
+  end
+
+  def test_send_err010
+    stub_request(:post, "https://www.kwtsms.com/API/send/")
+      .to_return(
+        status: 200,
+        body: { "result" => "ERROR", "code" => "ERR010", "description" => "Zero balance" }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    result = @client.send_sms("96598765432", "Hello")
+    assert_equal "ERROR", result["result"]
+    assert_includes result["action"], "kwtsms.com"
+  end
+
+  def test_send_err024
+    stub_request(:post, "https://www.kwtsms.com/API/send/")
+      .to_return(
+        status: 200,
+        body: { "result" => "ERROR", "code" => "ERR024", "description" => "IP not whitelisted" }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    result = @client.send_sms("96598765432", "Hello")
+    assert_equal "ERROR", result["result"]
+    assert_includes result["action"].downcase, "ip"
+  end
+
+  def test_send_err028
+    stub_request(:post, "https://www.kwtsms.com/API/send/")
+      .to_return(
+        status: 200,
+        body: { "result" => "ERROR", "code" => "ERR028", "description" => "Rate limit" }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    result = @client.send_sms("96598765432", "Hello")
+    assert_equal "ERROR", result["result"]
+    assert_includes result["action"], "15 seconds"
+  end
+
+  def test_send_err008
+    stub_request(:post, "https://www.kwtsms.com/API/send/")
+      .to_return(
+        status: 200,
+        body: { "result" => "ERROR", "code" => "ERR008", "description" => "Banned sender" }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    result = @client.send_sms("96598765432", "Hello")
+    assert_equal "ERROR", result["result"]
+    assert result.key?("action")
+  end
+
+  def test_send_unknown_error_code
+    stub_request(:post, "https://www.kwtsms.com/API/send/")
+      .to_return(
+        status: 200,
+        body: { "result" => "ERROR", "code" => "ERR999", "description" => "Unknown error" }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    result = @client.send_sms("96598765432", "Hello")
+    assert_equal "ERROR", result["result"]
+    refute result.key?("action")
+    assert_equal "Unknown error", result["description"]
+  end
+
+  def test_send_network_error
+    stub_request(:post, "https://www.kwtsms.com/API/send/")
+      .to_timeout
+
+    result = @client.send_sms("96598765432", "Hello")
+    assert_equal "ERROR", result["result"]
+    assert_equal "NETWORK", result["code"]
+  end
+
+  def test_send_deduplicates_numbers
+    stub_request(:post, "https://www.kwtsms.com/API/send/")
+      .with { |req| JSON.parse(req.body)["mobile"] == "96598765432" }
+      .to_return(
+        status: 200,
+        body: { "result" => "OK", "msg-id" => "123", "numbers" => 1,
+                "points-charged" => 1, "balance-after" => 99 }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    result = @client.send_sms(["+96598765432", "0096598765432"], "Hello")
+    assert_equal "OK", result["result"]
+  end
+
+  def test_send_with_sender_override
+    stub_request(:post, "https://www.kwtsms.com/API/send/")
+      .with { |req| JSON.parse(req.body)["sender"] == "CUSTOM" }
+      .to_return(
+        status: 200,
+        body: { "result" => "OK", "msg-id" => "123", "numbers" => 1,
+                "points-charged" => 1, "balance-after" => 99 }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    result = @client.send_sms("96598765432", "Hello", sender: "CUSTOM")
+    assert_equal "OK", result["result"]
+  end
+end
+
+class TestClientStatus < Minitest::Test
+  def setup
+    @client = KwtSMS::Client.new("user", "pass", log_file: "")
+  end
+
+  def test_status_success
+    stub_request(:post, "https://www.kwtsms.com/API/report/")
+      .to_return(
+        status: 200,
+        body: { "result" => "OK", "msg-id" => "123", "status" => "DELIVERED" }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    result = @client.status("123")
+    assert_equal "OK", result["result"]
+    assert_equal "DELIVERED", result["status"]
+  end
+
+  def test_status_err020
+    stub_request(:post, "https://www.kwtsms.com/API/report/")
+      .to_return(
+        status: 200,
+        body: { "result" => "ERROR", "code" => "ERR020", "description" => "Not found" }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    result = @client.status("999")
+    assert_equal "ERROR", result["result"]
+    assert result.key?("action")
+    assert_includes result["action"], "msg-id"
+  end
+
+  def test_status_network_error
+    stub_request(:post, "https://www.kwtsms.com/API/report/")
+      .to_timeout
+
+    result = @client.status("123")
+    assert_equal "ERROR", result["result"]
+    assert_equal "NETWORK", result["code"]
+  end
+end
+
+class TestClientSenderids < Minitest::Test
+  def setup
+    @client = KwtSMS::Client.new("user", "pass", log_file: "")
+  end
+
+  def test_senderids_success
+    stub_request(:post, "https://www.kwtsms.com/API/senderid/")
+      .to_return(
+        status: 200,
+        body: { "result" => "OK", "senderid" => ["KWT-SMS", "MY-APP"] }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    result = @client.senderids
+    assert_equal "OK", result["result"]
+    assert_equal ["KWT-SMS", "MY-APP"], result["senderids"]
+  end
+
+  def test_senderids_error
+    stub_request(:post, "https://www.kwtsms.com/API/senderid/")
+      .to_return(
+        status: 403,
+        body: { "result" => "ERROR", "code" => "ERR003", "description" => "Auth" }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    result = @client.senderids
+    assert_equal "ERROR", result["result"]
+    assert result.key?("action")
+  end
+end
+
+class TestClientCoverage < Minitest::Test
+  def setup
+    @client = KwtSMS::Client.new("user", "pass", log_file: "")
+  end
+
+  def test_coverage_success
+    stub_request(:post, "https://www.kwtsms.com/API/coverage/")
+      .to_return(
+        status: 200,
+        body: { "result" => "OK", "prefixes" => ["965", "966"] }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    result = @client.coverage
+    assert_equal "OK", result["result"]
+  end
+
+  def test_coverage_error
+    stub_request(:post, "https://www.kwtsms.com/API/coverage/")
+      .to_return(
+        status: 200,
+        body: { "result" => "ERROR", "code" => "ERR033", "description" => "No coverage" }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    result = @client.coverage
+    assert_equal "ERROR", result["result"]
+    assert_includes result["action"], "coverage"
+  end
+end
+
+class TestClientValidate < Minitest::Test
+  def setup
+    @client = KwtSMS::Client.new("user", "pass", log_file: "")
+  end
+
+  def test_validate_success
+    stub_request(:post, "https://www.kwtsms.com/API/validate/")
+      .to_return(
+        status: 200,
+        body: {
+          "result" => "OK",
+          "mobile" => { "OK" => ["96598765432"], "ER" => [], "NR" => [] }
+        }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    result = @client.validate(["96598765432"])
+    assert_equal ["96598765432"], result["ok"]
+    assert_empty result["er"]
+    assert_nil result["error"]
+  end
+
+  def test_validate_all_invalid
+    result = @client.validate(["abc", ""])
+    assert_empty result["ok"]
+    assert_equal 2, result["rejected"].length
+    assert_includes result["error"], "failed validation"
+  end
+
+  def test_validate_mixed
+    stub_request(:post, "https://www.kwtsms.com/API/validate/")
+      .to_return(
+        status: 200,
+        body: {
+          "result" => "OK",
+          "mobile" => { "OK" => ["96598765432"], "ER" => [], "NR" => [] }
+        }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    result = @client.validate(["96598765432", "abc"])
+    assert_equal ["96598765432"], result["ok"]
+    assert_equal 1, result["rejected"].length
+    assert_includes result["rejected"][0]["error"], "no digits found"
+  end
+end
+
+class TestClientEnvLoader < Minitest::Test
+  def test_load_env_file_parses_correctly
+    require "tempfile"
+    file = Tempfile.new(".env")
+    file.write(<<~ENV)
+      # Comment
+      KEY1=value1
+      KEY2="quoted value"
+      KEY3='single quoted'
+      KEY4=value with spaces  # inline comment
+
+      EMPTY_LINE_ABOVE=yes
+    ENV
+    file.close
+
+    env = KwtSMS.load_env_file(file.path)
+    assert_equal "value1", env["KEY1"]
+    assert_equal "quoted value", env["KEY2"]
+    assert_equal "single quoted", env["KEY3"]
+    assert_equal "value with spaces", env["KEY4"]
+    assert_equal "yes", env["EMPTY_LINE_ABOVE"]
+  ensure
+    file&.unlink
+  end
+
+  def test_load_env_missing_file
+    env = KwtSMS.load_env_file("/nonexistent/file")
+    assert_equal({}, env)
+  end
+end

@@ -1,0 +1,371 @@
+# kwtsms
+
+[![Gem Version](https://badge.fury.io/rb/kwtsms.svg)](https://rubygems.org/gems/kwtsms)
+[![CI](https://github.com/boxlinknet/kwtsms-ruby/actions/workflows/ci.yml/badge.svg)](https://github.com/boxlinknet/kwtsms-ruby/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Ruby](https://img.shields.io/badge/ruby-%3E%3D%202.7-red.svg)](https://www.ruby-lang.org/)
+
+Official Ruby client library for the [kwtSMS](https://www.kwtsms.com) SMS gateway. Send SMS, check balance, validate phone numbers, check delivery status, and manage sender IDs.
+
+Zero external runtime dependencies. Uses Ruby standard library only.
+
+## Install
+
+```bash
+gem install kwtsms
+```
+
+Or add to your `Gemfile`:
+
+```ruby
+gem "kwtsms"
+```
+
+## Quick Start
+
+```ruby
+require "kwtsms"
+
+sms = KwtSMS::Client.from_env
+
+# Verify credentials
+ok, balance, err = sms.verify
+puts "Balance: #{balance}" if ok
+
+# Send SMS
+result = sms.send_sms("96598765432", "Your OTP for MyApp is: 123456")
+puts "msg-id: #{result['msg-id']}" if result["result"] == "OK"
+```
+
+## Configuration
+
+### Environment Variables
+
+Create a `.env` file or set environment variables:
+
+```ini
+KWTSMS_USERNAME=your_api_user
+KWTSMS_PASSWORD=your_api_pass
+KWTSMS_SENDER_ID=YOUR-SENDER
+KWTSMS_TEST_MODE=1
+KWTSMS_LOG_FILE=kwtsms.log
+```
+
+### Direct Construction
+
+```ruby
+sms = KwtSMS::Client.new(
+  "your_api_user",
+  "your_api_pass",
+  sender_id: "YOUR-SENDER",
+  test_mode: true,
+  log_file: "kwtsms.log"
+)
+```
+
+## API Reference
+
+### verify
+
+Test credentials and check balance.
+
+```ruby
+ok, balance, err = sms.verify
+# ok:      true/false
+# balance: Float or nil
+# err:     nil or error message string
+```
+
+### balance
+
+Get current balance.
+
+```ruby
+balance = sms.balance  # Float or nil
+```
+
+### send_sms
+
+Send SMS to one or more numbers.
+
+```ruby
+# Single number
+result = sms.send_sms("96598765432", "Hello!")
+
+# Multiple numbers
+result = sms.send_sms(["96598765432", "96512345678"], "Bulk message")
+
+# Override sender ID
+result = sms.send_sms("96598765432", "Hello!", sender: "MY-APP")
+```
+
+Response on success:
+```ruby
+{
+  "result" => "OK",
+  "msg-id" => "12345",
+  "numbers" => 1,
+  "points-charged" => 1,
+  "balance-after" => 149.0
+}
+```
+
+**Always save `msg-id` immediately after a successful send.** You need it for status checks and delivery reports.
+
+**Never call `balance` after `send_sms`.** The send response already includes your updated balance in `balance-after`.
+
+### send_with_retry
+
+Send with automatic retry on ERR028 (15-second rate limit).
+
+```ruby
+result = sms.send_with_retry("96598765432", "Hello!", max_retries: 3)
+```
+
+### status
+
+Get delivery report for a message.
+
+```ruby
+result = sms.status("12345")  # pass the msg-id from send_sms
+# result["status"] => "DELIVERED", "FAILED", "PENDING", "REJECTED"
+```
+
+### senderids
+
+List sender IDs registered on your account.
+
+```ruby
+result = sms.senderids
+puts result["senderids"]  # => ["KWT-SMS", "MY-APP"]
+```
+
+### coverage
+
+List active country prefixes.
+
+```ruby
+result = sms.coverage
+```
+
+### validate
+
+Validate phone numbers.
+
+```ruby
+result = sms.validate(["96598765432", "invalid", "+96512345678"])
+puts result["ok"]        # valid numbers
+puts result["er"]        # error numbers
+puts result["rejected"]  # locally rejected with error messages
+```
+
+## Utility Functions
+
+```ruby
+# Normalize phone number: Arabic digits, strip non-digits, strip leading zeros
+KwtSMS.normalize_phone("+965 9876 5432")  # => "96598765432"
+
+# Validate phone input (returns [valid, error, normalized])
+valid, error, normalized = KwtSMS.validate_phone_input("user@email.com")
+# => [false, "'user@email.com' is an email address, not a phone number", ""]
+
+# Clean message: strip emojis, HTML, hidden chars, convert Arabic digits
+KwtSMS.clean_message("Hello \u{1F600} <b>world</b>")  # => "Hello  world"
+
+# Enrich error with developer-friendly action message
+KwtSMS.enrich_error({"result" => "ERROR", "code" => "ERR003"})
+# => adds "action" key with guidance
+
+# Access all error codes
+KwtSMS::API_ERRORS  # => Hash of all 29 error codes with action messages
+```
+
+## Bulk Send (>200 Numbers)
+
+When passing more than 200 numbers to `send_sms`, the library automatically:
+
+1. Splits into batches of 200
+2. Sends each batch with a 0.5s delay
+3. Retries ERR013 (queue full) up to 3 times with 30s/60s/120s backoff
+4. Returns aggregated result: `OK`, `PARTIAL`, or `ERROR`
+
+```ruby
+result = sms.send_sms(large_number_list, "Announcement")
+puts result["batches"]         # number of batches
+puts result["msg-ids"]         # array of message IDs
+puts result["points-charged"]  # total points
+puts result["balance-after"]   # final balance
+puts result["errors"]          # any batch errors
+```
+
+## Phone Number Handling
+
+Phone numbers are normalized automatically before sending:
+
+- Arabic-Indic and Extended Arabic-Indic digits converted to Latin
+- Non-digit characters stripped (`+`, spaces, dashes, dots, brackets)
+- Leading zeros stripped (handles `00` country code prefix)
+- Duplicate numbers deduplicated before sending
+- Invalid numbers rejected locally with clear error messages
+
+## Message Cleaning
+
+Messages are cleaned automatically before sending to prevent silent delivery failures:
+
+- Emojis stripped (cause messages to get stuck in queue)
+- HTML tags stripped (causes ERR027)
+- Hidden characters stripped (BOM, zero-width spaces, soft hyphens, directional marks)
+- Arabic-Indic digits converted to Latin
+- C0/C1 control characters removed (except `\n` and `\t`)
+
+## CLI
+
+```bash
+kwtsms setup                              # Interactive credential wizard
+kwtsms verify                             # Test credentials, show balance
+kwtsms balance                            # Show available + purchased credits
+kwtsms senderid                           # List sender IDs
+kwtsms coverage                           # List active country prefixes
+kwtsms send 96598765432 "Hello!"          # Send SMS
+kwtsms send 965xxx,965yyy "Bulk message"  # Multiple numbers
+kwtsms send 96598765432 "Hi" --sender X   # Override sender ID
+kwtsms validate 96598765432 96512345678   # Validate numbers
+kwtsms version                            # Show version
+```
+
+## Credential Management
+
+**Never hardcode credentials in source code.** Credentials must be changeable without recompiling or redeploying.
+
+### Environment variables (recommended for servers)
+
+```ruby
+sms = KwtSMS::Client.from_env  # reads KWTSMS_USERNAME, KWTSMS_PASSWORD, etc.
+```
+
+### Rails initializer
+
+```ruby
+# config/initializers/kwtsms.rb
+KWTSMS_CLIENT = KwtSMS::Client.from_env
+```
+
+### Constructor injection (for custom config systems)
+
+```ruby
+sms = KwtSMS::Client.new(
+  config[:username],
+  config[:password],
+  sender_id: config[:sender_id]
+)
+```
+
+## Best Practices
+
+### Validate before calling the API
+
+```ruby
+valid, error, normalized = KwtSMS.validate_phone_input(user_input)
+unless valid
+  # Don't waste an API call on invalid input
+  return { error: error }
+end
+result = sms.send_sms(normalized, message)
+```
+
+### User-facing error messages
+
+Never expose raw API errors to end users:
+
+| Situation | API Code | Show to User |
+|-----------|----------|--------------|
+| Invalid phone | ERR006, ERR025 | "Please enter a valid phone number in international format." |
+| Auth error | ERR003 | "SMS service temporarily unavailable. Please try again later." |
+| No balance | ERR010, ERR011 | "SMS service temporarily unavailable. Please try again later." |
+| Rate limited | ERR028 | "Please wait a moment before requesting another code." |
+| Content rejected | ERR031, ERR032 | "Your message could not be sent. Please try again with different content." |
+
+### Sender ID
+
+- `KWT-SMS` is a shared test sender: delays, blocked on some carriers. Never use in production.
+- Register a private Sender ID at kwtsms.com (takes ~5 working days for Kuwait).
+- **Sender ID is case sensitive:** `Kuwait` is not the same as `KUWAIT`.
+- **For OTP, use Transactional Sender ID.** Promotional IDs are filtered by DND on Zain and Ooredoo.
+
+### Timezone
+
+`unix-timestamp` in API responses is GMT+3 (Asia/Kuwait server time), not UTC. Always convert when storing or displaying. Log timestamps written by this client are UTC.
+
+### Security Checklist
+
+Before going live:
+
+- [ ] Bot protection enabled (CAPTCHA for web)
+- [ ] Rate limit per phone number (max 3-5/hour)
+- [ ] Rate limit per IP address (max 10-20/hour)
+- [ ] Rate limit per user/session if authenticated
+- [ ] Monitoring/alerting on abuse patterns
+- [ ] Admin notification on low balance
+- [ ] Test mode OFF (`KWTSMS_TEST_MODE=0`)
+- [ ] Private Sender ID registered (not KWT-SMS)
+- [ ] Transactional Sender ID for OTP (not promotional)
+
+## JSONL Logging
+
+Every API call is logged to a JSONL file (default: `kwtsms.log`):
+
+```json
+{"ts":"2026-03-06T12:00:00Z","endpoint":"send","request":{"username":"user","password":"***","mobile":"96598765432","message":"Hello"},"response":{"result":"OK","msg-id":"12345"},"ok":true,"error":null}
+```
+
+Passwords are always masked as `***`. Logging never crashes the main flow.
+
+Disable logging by setting `log_file: ""` in the constructor.
+
+## Examples
+
+See the [examples/](examples/) directory:
+
+| # | Example | Description |
+|---|---------|-------------|
+| 01 | [Basic Usage](examples/01_basic_usage.rb) | Connect, verify, send SMS, validate |
+| 02 | [OTP Flow](examples/02_otp_flow.rb) | Send OTP codes |
+| 03 | [Bulk SMS](examples/03_bulk_sms.rb) | Send to many recipients |
+| 04 | [Rails Endpoint](examples/04_rails_endpoint.rb) | Rails controller |
+| 05 | [Error Handling](examples/05_error_handling.rb) | Handle every error type |
+| 06 | [OTP Production](examples/06-otp-production/) | Production OTP with rate limiting, CAPTCHA, Redis |
+
+## Requirements
+
+- Ruby >= 2.7
+- No external runtime dependencies
+
+## Publishing to RubyGems
+
+```bash
+# 1. Create account at https://rubygems.org/sign_up
+# 2. Build the gem
+gem build kwtsms.gemspec
+
+# 3. Push to RubyGems
+gem push kwtsms-0.1.0.gem
+
+# 4. Or use the automated GitHub Actions workflow:
+#    Push a tag and it publishes automatically
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+## License
+
+MIT License. See [LICENSE](LICENSE).
+
+## Links
+
+- [kwtSMS Website](https://www.kwtsms.com)
+- [kwtSMS API Best Practices](https://www.kwtsms.com/articles/sms-api-implementation-best-practices.html)
+- [RubyGems](https://rubygems.org/gems/kwtsms)
+- [GitHub](https://github.com/boxlinknet/kwtsms-ruby)
+- [Changelog](CHANGELOG.md)
+- [Contributing](CONTRIBUTING.md)
+- [Security](SECURITY.md)

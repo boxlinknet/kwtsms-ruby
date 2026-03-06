@@ -1,0 +1,222 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require "kwtsms"
+require "optparse"
+
+module KwtSMS
+  module CLI
+    def self.run(args = ARGV)
+      command = args.shift
+
+      case command
+      when "setup"
+        setup
+      when "verify"
+        verify
+      when "balance"
+        show_balance
+      when "senderid"
+        list_senderids
+      when "coverage"
+        list_coverage
+      when "send"
+        send_sms(args)
+      when "validate"
+        validate_numbers(args)
+      when "version", "--version", "-v"
+        puts "kwtsms #{KwtSMS::VERSION}"
+      when "help", "--help", "-h", nil
+        print_help
+      else
+        $stderr.puts "Unknown command: #{command}"
+        $stderr.puts "Run 'kwtsms help' for usage."
+        exit 1
+      end
+    rescue => e
+      $stderr.puts "Error: #{e.message}"
+      exit 1
+    end
+
+    def self.print_help
+      puts <<~HELP
+        kwtsms #{KwtSMS::VERSION} - kwtSMS API client
+
+        Usage:
+          kwtsms setup                              Interactive credential wizard
+          kwtsms verify                             Test credentials, show balance
+          kwtsms balance                            Show available + purchased credits
+          kwtsms senderid                           List sender IDs
+          kwtsms coverage                           List active country prefixes
+          kwtsms send <mobile> <message> [options]  Send SMS
+          kwtsms validate <number> [number2 ...]    Validate numbers
+          kwtsms version                            Show version
+
+        Send options:
+          --sender SENDER_ID    Override sender ID
+
+        Environment variables:
+          KWTSMS_USERNAME       API username (required)
+          KWTSMS_PASSWORD       API password (required)
+          KWTSMS_SENDER_ID      Sender ID (default: KWT-SMS)
+          KWTSMS_TEST_MODE      Set to 1 for test mode
+          KWTSMS_LOG_FILE       Log file path (default: kwtsms.log)
+
+        Or create a .env file with these variables.
+      HELP
+    end
+
+    def self.client
+      KwtSMS::Client.from_env
+    end
+
+    def self.setup
+      puts "kwtsms setup wizard"
+      puts "=" * 40
+      print "API Username: "
+      username = $stdin.gets&.strip
+      print "API Password: "
+      password = $stdin.gets&.strip
+      print "Sender ID (default: KWT-SMS): "
+      sender = $stdin.gets&.strip
+      sender = "KWT-SMS" if sender.nil? || sender.empty?
+      print "Test mode? (y/N): "
+      test = $stdin.gets&.strip&.downcase == "y"
+
+      env_content = <<~ENV
+        KWTSMS_USERNAME=#{username}
+        KWTSMS_PASSWORD=#{password}
+        KWTSMS_SENDER_ID=#{sender}
+        KWTSMS_TEST_MODE=#{test ? '1' : '0'}
+        KWTSMS_LOG_FILE=kwtsms.log
+      ENV
+
+      File.write(".env", env_content)
+      puts "\n.env file created. Testing credentials..."
+
+      sms = KwtSMS::Client.new(username, password, sender_id: sender, test_mode: test)
+      ok, balance, err = sms.verify
+      if ok
+        puts "Credentials verified. Balance: #{balance} credits."
+      else
+        puts "Credential verification failed: #{err}"
+      end
+    end
+
+    def self.verify
+      sms = client
+      ok, balance, err = sms.verify
+      if ok
+        puts "Credentials: OK"
+        puts "Balance: #{balance} credits"
+        puts "Purchased: #{sms.cached_purchased} credits" if sms.cached_purchased
+      else
+        $stderr.puts "Verification failed: #{err}"
+        exit 1
+      end
+    end
+
+    def self.show_balance
+      sms = client
+      ok, balance, err = sms.verify
+      if ok
+        puts "Available: #{balance} credits"
+        puts "Purchased: #{sms.cached_purchased} credits" if sms.cached_purchased
+      else
+        $stderr.puts "Failed to get balance: #{err}"
+        exit 1
+      end
+    end
+
+    def self.list_senderids
+      sms = client
+      result = sms.senderids
+      if result["result"] == "OK"
+        ids = result["senderids"]
+        if ids.empty?
+          puts "No sender IDs registered."
+        else
+          puts "Sender IDs:"
+          ids.each { |id| puts "  - #{id}" }
+        end
+      else
+        $stderr.puts "Error: #{result['description']}"
+        $stderr.puts result["action"] if result["action"]
+        exit 1
+      end
+    end
+
+    def self.list_coverage
+      sms = client
+      result = sms.coverage
+      if result["result"] == "OK"
+        puts "Active coverage:"
+        puts JSON.pretty_generate(result)
+      else
+        $stderr.puts "Error: #{result['description']}"
+        $stderr.puts result["action"] if result["action"]
+        exit 1
+      end
+    end
+
+    def self.send_sms(args)
+      sender = nil
+      opts = OptionParser.new do |o|
+        o.on("--sender SENDER_ID", "Override sender ID") { |s| sender = s }
+      end
+      opts.parse!(args)
+
+      if args.length < 2
+        $stderr.puts "Usage: kwtsms send <mobile> <message> [--sender SENDER_ID]"
+        $stderr.puts "Multiple numbers: kwtsms send 965xxx,965yyy \"message\""
+        exit 1
+      end
+
+      mobile_input = args[0]
+      message = args[1]
+
+      mobiles = mobile_input.include?(",") ? mobile_input.split(",").map(&:strip) : mobile_input
+
+      sms = client
+
+      if sms.test_mode
+        $stderr.puts "WARNING: Test mode is ON. Messages will be queued but NOT delivered."
+      end
+
+      result = sms.send_sms(mobiles, message, sender: sender)
+
+      if result["result"] == "OK"
+        puts "Message sent successfully."
+        puts "  msg-id: #{result['msg-id']}" if result["msg-id"]
+        puts "  Numbers: #{result['numbers']}" if result["numbers"]
+        puts "  Points charged: #{result['points-charged']}" if result["points-charged"]
+        puts "  Balance after: #{result['balance-after']}" if result["balance-after"]
+      else
+        $stderr.puts "Send failed: #{result['description']}"
+        $stderr.puts "Action: #{result['action']}" if result["action"]
+        exit 1
+      end
+    end
+
+    def self.validate_numbers(args)
+      if args.empty?
+        $stderr.puts "Usage: kwtsms validate <number> [number2 ...]"
+        exit 1
+      end
+
+      sms = client
+      result = sms.validate(args)
+
+      puts "Valid (OK): #{result['ok'].inspect}" unless result["ok"].empty?
+      puts "Errors (ER): #{result['er'].inspect}" unless result["er"].empty?
+      puts "No route (NR): #{result['nr'].inspect}" unless result["nr"].empty?
+      if result["rejected"] && !result["rejected"].empty?
+        puts "Locally rejected:"
+        result["rejected"].each { |r| puts "  #{r['input']}: #{r['error']}" }
+      end
+      puts "Error: #{result['error']}" if result["error"]
+    end
+  end
+end
+
+KwtSMS::CLI.run
