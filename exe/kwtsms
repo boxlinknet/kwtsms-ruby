@@ -224,4 +224,4 @@ module KwtSMS
   end
 end
 
-KwtSMS::CLI.run
+KwtSMS::CLI.run if $PROGRAM_NAME == __FILE__
