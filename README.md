@@ -213,10 +213,29 @@ puts result["balance-after"]   # final balance
 puts result["errors"]          # any batch errors
 ```
 
-## Phone Number Handling
+## Phone Number Formats
 
-Phone numbers are normalized automatically before sending:
+All formats are accepted and normalized automatically:
 
+| Input | Normalized | Valid? |
+|-------|-----------|--------|
+| `96598765432` | `96598765432` | Yes |
+| `+96598765432` | `96598765432` | Yes |
+| `0096598765432` | `96598765432` | Yes |
+| `965 9876 5432` | `96598765432` | Yes |
+| `965-9876-5432` | `96598765432` | Yes |
+| `(965) 98765432` | `96598765432` | Yes |
+| `٩٦٥٩٨٧٦٥٤٣٢` | `96598765432` | Yes |
+| `۹۶۵۹۸۷۶۵۴۳۲` | `96598765432` | Yes |
+| `+٩٦٥٩٨٧٦٥٤٣٢` | `96598765432` | Yes |
+| `٠٠٩٦٥٩٨٧٦٥٤٣٢` | `96598765432` | Yes |
+| `٩٦٥ ٩٨٧٦ ٥٤٣٢` | `96598765432` | Yes |
+| `٩٦٥-٩٨٧٦-٥٤٣٢` | `96598765432` | Yes |
+| `965٩٨٧٦٥٤٣٢` | `96598765432` | Yes |
+| `123456` (too short) | rejected | No |
+| `user@gmail.com` | rejected | No |
+
+Normalization rules:
 - Arabic-Indic and Extended Arabic-Indic digits converted to Latin
 - Non-digit characters stripped (`+`, spaces, dashes, dots, brackets)
 - Leading zeros stripped (handles `00` country code prefix)
