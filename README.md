@@ -1,6 +1,6 @@
 # kwtSMS Ruby Client
 
-[![Gem Version](https://badge.fury.io/rb/kwtsms.svg)](https://rubygems.org/gems/kwtsms)
+[![Gem Version](https://img.shields.io/gem/v/kwtsms.svg)](https://rubygems.org/gems/kwtsms)
 [![CI](https://github.com/boxlinknet/kwtsms-ruby/actions/workflows/ci.yml/badge.svg)](https://github.com/boxlinknet/kwtsms-ruby/actions/workflows/ci.yml)
 [![Security Audit](https://github.com/boxlinknet/kwtsms-ruby/actions/workflows/codeql.yml/badge.svg)](https://github.com/boxlinknet/kwtsms-ruby/actions/workflows/codeql.yml)
 [![Ruby](https://img.shields.io/badge/Ruby-%3E%3D%202.7-red.svg)](https://www.ruby-lang.org/)
