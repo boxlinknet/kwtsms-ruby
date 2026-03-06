@@ -3,6 +3,7 @@
 
 require "kwtsms"
 require "optparse"
+require "io/console"
 
 module KwtSMS
   module CLI
@@ -76,7 +77,11 @@ module KwtSMS
       print "API Username: "
       username = $stdin.gets&.strip
       print "API Password: "
-      password = $stdin.gets&.strip
+      password = if $stdin.respond_to?(:noecho)
+                   $stdin.noecho { $stdin.gets }&.strip.tap { puts }
+                 else
+                   $stdin.gets&.strip
+                 end
       print "Sender ID (default: KWT-SMS): "
       sender = $stdin.gets&.strip
       sender = "KWT-SMS" if sender.nil? || sender.empty?

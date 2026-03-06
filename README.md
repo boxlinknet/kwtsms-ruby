@@ -192,7 +192,7 @@ KwtSMS.enrich_error({"result" => "ERROR", "code" => "ERR003"})
 # => adds "action" key with guidance
 
 # Access all error codes
-KwtSMS::API_ERRORS  # => Hash of all 29 error codes with action messages
+KwtSMS::API_ERRORS  # => Hash of all 30 error codes with action messages
 ```
 
 ## Bulk Send (>200 Numbers)

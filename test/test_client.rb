@@ -466,6 +466,144 @@ class TestClientValidate < Minitest::Test
   end
 end
 
+class TestClientSendWithRetry < Minitest::Test
+  def setup
+    @client = KwtSMS::Client.new("user", "pass", log_file: "")
+  end
+
+  def test_send_with_retry_success_first_attempt
+    stub_request(:post, "https://www.kwtsms.com/API/send/")
+      .to_return(
+        status: 200,
+        body: { "result" => "OK", "msg-id" => "100", "numbers" => 1,
+                "points-charged" => 1, "balance-after" => 99 }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    result = @client.send_with_retry("96598765432", "Hello", max_retries: 2)
+    assert_equal "OK", result["result"]
+    assert_equal "100", result["msg-id"]
+  end
+
+  def test_send_with_retry_retries_on_err028
+    call_count = 0
+    stub_request(:post, "https://www.kwtsms.com/API/send/")
+      .to_return do
+        call_count += 1
+        if call_count <= 2
+          { status: 200,
+            body: { "result" => "ERROR", "code" => "ERR028", "description" => "Rate limit" }.to_json,
+            headers: { "Content-Type" => "application/json" } }
+        else
+          { status: 200,
+            body: { "result" => "OK", "msg-id" => "200", "numbers" => 1,
+                    "points-charged" => 1, "balance-after" => 98 }.to_json,
+            headers: { "Content-Type" => "application/json" } }
+        end
+      end
+
+    # Stub sleep to avoid waiting 16s in tests
+    @client.stub(:sleep, nil) do
+      result = @client.send_with_retry("96598765432", "Hello", max_retries: 3)
+      assert_equal "OK", result["result"]
+      assert_equal 3, call_count
+    end
+  end
+
+  def test_send_with_retry_gives_up_after_max_retries
+    stub_request(:post, "https://www.kwtsms.com/API/send/")
+      .to_return(
+        status: 200,
+        body: { "result" => "ERROR", "code" => "ERR028", "description" => "Rate limit" }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    @client.stub(:sleep, nil) do
+      result = @client.send_with_retry("96598765432", "Hello", max_retries: 2)
+      assert_equal "ERROR", result["result"]
+      assert_equal "ERR028", result["code"]
+    end
+  end
+
+  def test_send_with_retry_does_not_retry_other_errors
+    stub_request(:post, "https://www.kwtsms.com/API/send/")
+      .to_return(
+        status: 200,
+        body: { "result" => "ERROR", "code" => "ERR003", "description" => "Auth error" }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    result = @client.send_with_retry("96598765432", "Hello", max_retries: 3)
+    assert_equal "ERROR", result["result"]
+    assert_equal "ERR003", result["code"]
+  end
+end
+
+class TestClientSendBulk < Minitest::Test
+  def setup
+    @client = KwtSMS::Client.new("user", "pass", log_file: "")
+  end
+
+  def test_bulk_send_splits_into_batches
+    numbers = (1..201).map { |i| "9659876#{i.to_s.rjust(4, '0')}" }
+
+    stub_request(:post, "https://www.kwtsms.com/API/send/")
+      .to_return(
+        status: 200,
+        body: { "result" => "OK", "msg-id" => "B1", "numbers" => 200,
+                "points-charged" => 200, "balance-after" => 800 }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      ).then
+      .to_return(
+        status: 200,
+        body: { "result" => "OK", "msg-id" => "B2", "numbers" => 1,
+                "points-charged" => 1, "balance-after" => 799 }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    @client.stub(:sleep, nil) do
+      result = @client.send_sms(numbers, "Bulk test")
+      assert_equal "OK", result["result"]
+      assert result["bulk"]
+      assert_equal 2, result["batches"]
+      assert_equal ["B1", "B2"], result["msg-ids"]
+      assert_equal 201, result["numbers"]
+      assert_equal 201, result["points-charged"]
+      assert_in_delta 799.0, result["balance-after"]
+      assert_empty result["errors"]
+    end
+  end
+
+  def test_bulk_send_partial_failure
+    numbers = (1..401).map { |i| "9659876#{i.to_s.rjust(4, '0')}" }
+
+    stub_request(:post, "https://www.kwtsms.com/API/send/")
+      .to_return(
+        status: 200,
+        body: { "result" => "OK", "msg-id" => "B1", "numbers" => 200,
+                "points-charged" => 200, "balance-after" => 800 }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      ).then
+      .to_return(
+        status: 200,
+        body: { "result" => "ERROR", "code" => "ERR010", "description" => "Zero balance" }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      ).then
+      .to_return(
+        status: 200,
+        body: { "result" => "ERROR", "code" => "ERR010", "description" => "Zero balance" }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    @client.stub(:sleep, nil) do
+      result = @client.send_sms(numbers, "Partial test")
+      assert_equal "PARTIAL", result["result"]
+      assert_equal 1, result["msg-ids"].length
+      assert_equal 2, result["errors"].length
+    end
+  end
+end
+
 class TestClientEnvLoader < Minitest::Test
   def test_load_env_file_parses_correctly
     require "tempfile"
