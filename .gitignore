@@ -43,6 +43,9 @@ docs/
 *.log
 kwtsms.log
 
+# Archives
+*.zip
+
 # OS
 .DS_Store
 Thumbs.db
