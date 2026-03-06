@@ -16,8 +16,8 @@ Demonstrates integrating kwtsms into a Ruby on Rails application.
 
 3. Set environment variables (or use `.env` in development):
    ```ini
-   KWTSMS_USERNAME=your_api_user
-   KWTSMS_PASSWORD=your_api_pass
+   KWTSMS_USERNAME=ruby_username
+   KWTSMS_PASSWORD=ruby_password
    KWTSMS_SENDER_ID=YOUR-SENDER
    KWTSMS_TEST_MODE=0
    ```

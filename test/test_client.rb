@@ -46,13 +46,13 @@ class TestClientFromEnv < Minitest::Test
   end
 
   def test_from_env_with_env_vars
-    ENV["KWTSMS_USERNAME"] = "testuser"
-    ENV["KWTSMS_PASSWORD"] = "testpass"
+    ENV["KWTSMS_USERNAME"] = "ruby_username"
+    ENV["KWTSMS_PASSWORD"] = "ruby_password"
     ENV["KWTSMS_SENDER_ID"] = "MY-SENDER"
     ENV["KWTSMS_TEST_MODE"] = "1"
 
     client = KwtSMS::Client.from_env
-    assert_equal "testuser", client.username
+    assert_equal "ruby_username", client.username
     assert_equal "MY-SENDER", client.sender_id
     assert client.test_mode
   end
