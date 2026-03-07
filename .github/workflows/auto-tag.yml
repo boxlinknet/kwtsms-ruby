@@ -1,0 +1,41 @@
+name: Auto-Tag on Version Bump
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "lib/kwtsms/version.rb"
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
+
+      - name: Detect version change
+        id: version
+        run: |
+          NEW_VERSION=$(grep -oP "VERSION\s*=\s*\"\K[^\"]+\" lib/kwtsms/version.rb | tr -d '"')
+          OLD_VERSION=$(git show HEAD~1:lib/kwtsms/version.rb 2>/dev/null | grep -oP "VERSION\s*=\s*\"\K[^\"]+\"" | tr -d '"' || echo "")
+          echo "new=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+          echo "old=$OLD_VERSION" >> "$GITHUB_OUTPUT"
+          if [ "$NEW_VERSION" != "$OLD_VERSION" ] && [ -n "$NEW_VERSION" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create and push tag
+        if: steps.version.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="v${{ steps.version.outputs.new }}"
+          git tag "$TAG"
+          git push origin "$TAG"
+          echo "Tagged $TAG"
