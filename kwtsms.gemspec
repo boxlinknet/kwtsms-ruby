@@ -26,12 +26,9 @@ Gem::Specification.new do |spec|
 
   spec.files = Dir.glob(%w[
     lib/**/*.rb
-    exe/*
     LICENSE
     README.md
     CHANGELOG.md
   ])
-  spec.bindir        = "exe"
-  spec.executables   = ["kwtsms"]
   spec.require_paths = ["lib"]
 end

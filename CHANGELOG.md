@@ -43,7 +43,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bulk send support: auto-batching for >200 numbers with ERR013 retry and backoff
 - Phone number deduplication before sending
 - JSONL logging with password masking
-- CLI tool (`kwtsms`) with setup, verify, balance, senderid, coverage, send, and validate commands
 - Zero external runtime dependencies (uses Ruby stdlib only)
 - Comprehensive test suite: unit tests, mocked API tests, and real integration tests
 - Examples: basic usage, OTP flow, bulk SMS, Rails endpoint, error handling, production OTP

@@ -243,18 +243,7 @@ Messages are cleaned automatically before sending to prevent silent delivery fai
 
 ## CLI
 
-```bash
-kwtsms setup                              # Interactive credential wizard
-kwtsms verify                             # Test credentials, show balance
-kwtsms balance                            # Show available + purchased credits
-kwtsms senderid                           # List sender IDs
-kwtsms coverage                           # List active country prefixes
-kwtsms send 96598765432 "Hello!"          # Send SMS
-kwtsms send 965xxx,965yyy "Bulk message"  # Multiple numbers
-kwtsms send 96598765432 "Hi" --sender X   # Override sender ID
-kwtsms validate 96598765432 96512345678   # Validate numbers
-kwtsms version                            # Show version
-```
+For a standalone CLI tool that works on all operating systems, see [kwtsms-cli](https://github.com/boxlinknet/kwtsms-cli).
 
 ## Credential Management
 
