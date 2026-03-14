@@ -35,9 +35,13 @@ Gemfile.lock
 # Local config
 .claude/
 CLAUDE.md
+napkin.md
 
 # Docs (internal PRD, not for distribution)
 docs/
+
+# Git worktrees
+.worktrees/
 
 # Logs
 *.log
