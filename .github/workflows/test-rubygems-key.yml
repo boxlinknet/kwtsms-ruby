@@ -1,0 +1,35 @@
+name: Test RubyGems API Key
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-key:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check secret is set
+        env:
+          KEY: ${{ secrets.RUBYGEMS_API_KEY }}
+        run: |
+          if [ -z "$KEY" ]; then
+            echo "::error::RUBYGEMS_API_KEY secret is NOT set"
+            exit 1
+          fi
+          echo "Secret is set (${#KEY} chars)"
+
+      - name: Test key with RubyGems API
+        env:
+          KEY: ${{ secrets.RUBYGEMS_API_KEY }}
+        run: |
+          echo "--- Testing with Authorization header ---"
+          curl -sv -H "Authorization: $KEY" https://rubygems.org/api/v1/api_key.json 2>&1 | tail -20
+
+          echo ""
+          echo "--- Testing gem push dry-run style ---"
+          mkdir -p ~/.gem
+          echo "---" > ~/.gem/credentials
+          echo ":rubygems_api_key: $KEY" >> ~/.gem/credentials
+          chmod 0600 ~/.gem/credentials
+
+          # Just check we can query our gems (proves auth works)
+          curl -sv -H "Authorization: $KEY" https://rubygems.org/api/v1/gems.json 2>&1 | tail -20
