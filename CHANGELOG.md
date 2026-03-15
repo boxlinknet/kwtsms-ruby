@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-03-15
+
+### Added
+
+- Country-specific phone validation: 80+ countries with local length and mobile prefix rules
+- `KwtSMS.find_country_code` : longest-match country code lookup (3/2/1-digit)
+- `KwtSMS.validate_phone_format` : validates number against country-specific rules
+- `KwtSMS::PHONE_RULES` : validation rules table (GCC, Levant, Asia, Europe, Americas, Africa, Oceania)
+- `KwtSMS::COUNTRY_NAMES` : human-readable country names for error messages
+- Domestic trunk prefix stripping in `normalize_phone` (e.g. 9660559... becomes 966559...)
+- README badges: Gem Downloads, Bundle Audit, GitGuardian, OpenSSF Scorecard
+- GitHub workflows: GitGuardian secret scanning, OpenSSF Scorecard, PR labeler
+
+### Changed
+
+- `validate_phone_input` now returns country-specific errors (e.g. "Invalid Saudi Arabia number: expected 9 digits after +966, got 8")
+- Network error handling: added ENETUNREACH, ECONNRESET, EPIPE, SSLError to rescue list
+
+### Removed
+
+- Built-in CLI tool (replaced by standalone [kwtsms-cli](https://github.com/boxlinknet/kwtsms-cli))
+
 ## [0.2.0] - 2026-03-07
 
 ### Added
@@ -47,5 +69,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive test suite: unit tests, mocked API tests, and real integration tests
 - Examples: basic usage, OTP flow, bulk SMS, Rails endpoint, error handling, production OTP
 
+[0.3.0]: https://github.com/boxlinknet/kwtsms-ruby/releases/tag/v0.3.0
 [0.2.0]: https://github.com/boxlinknet/kwtsms-ruby/releases/tag/v0.2.0
 [0.1.0]: https://github.com/boxlinknet/kwtsms-ruby/releases/tag/v0.1.0
