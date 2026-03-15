@@ -43,6 +43,13 @@ module KwtSMS
       @cached_purchased = nil
     end
 
+    # Redact password from inspect/to_s output to prevent accidental exposure
+    # in logs, error trackers (Sentry, Bugsnag), or REPL sessions.
+    def inspect
+      "#<#{self.class} @username=#{@username.inspect} @sender_id=#{@sender_id.inspect} @test_mode=#{@test_mode}>"
+    end
+    alias_method :to_s, :inspect
+
     # Load credentials from environment variables, falling back to .env file.
     #
     # Required env vars:

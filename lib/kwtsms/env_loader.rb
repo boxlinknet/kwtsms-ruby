@@ -9,6 +9,7 @@ module KwtSMS
       File.foreach(env_file, encoding: "utf-8") do |line|
         line = line.strip
         next if line.empty? || line.start_with?("#")
+        line = line.sub(/\Aexport\s+/, "")
         next unless line.include?("=")
 
         key, _, value = line.partition("=")

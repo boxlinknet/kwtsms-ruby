@@ -222,24 +222,28 @@ module KwtSMS
     # 1. Empty / blank
     return [false, "Phone number is required", ""] if raw.empty?
 
+    # Sanitize raw input for safe interpolation in error messages:
+    # strip control chars and truncate to prevent log injection
+    safe = raw.gsub(/[[:cntrl:]]/, "")[0, 50]
+
     # 2. Email address entered by mistake
-    return [false, "'#{raw}' is an email address, not a phone number", ""] if raw.include?("@")
+    return [false, "'#{safe}' is an email address, not a phone number", ""] if raw.include?("@")
 
     # 3. Normalize
     normalized = normalize_phone(raw)
 
     # 4. No digits survived normalization
-    return [false, "'#{raw}' is not a valid phone number, no digits found", ""] if normalized.empty?
+    return [false, "'#{safe}' is not a valid phone number, no digits found", ""] if normalized.empty?
 
     # 5. Too short
     if normalized.length < 7
       digit_word = normalized.length == 1 ? "digit" : "digits"
-      return [false, "'#{raw}' is too short to be a valid phone number (#{normalized.length} #{digit_word}, minimum is 7)", normalized]
+      return [false, "'#{safe}' is too short to be a valid phone number (#{normalized.length} #{digit_word}, minimum is 7)", normalized]
     end
 
     # 6. Too long
     if normalized.length > 15
-      return [false, "'#{raw}' is too long to be a valid phone number (#{normalized.length} digits, maximum is 15)", normalized]
+      return [false, "'#{safe}' is too long to be a valid phone number (#{normalized.length} digits, maximum is 15)", normalized]
     end
 
     # 7. Country-specific format validation
