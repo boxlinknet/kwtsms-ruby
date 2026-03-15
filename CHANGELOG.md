@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] - 2026-03-15
+
+### Fixed
+
+- Password no longer visible in `Client#inspect` or `#to_s` output (redacted)
+- Sanitize raw input in phone validation errors to prevent log injection
+- Command injection risk in dependabot auto-merge workflow (use PR number not URL)
+- Explicit SSL `VERIFY_PEER` on all HTTP connections
+- Log file path traversal protection: rejects `..`, absolute paths, null bytes, pipes
+- `.env` parser now handles `export KEY=VALUE` syntax
+- CI workflow scoped to `permissions: contents: read`
+- Missing error codes ERR019-ERR023 added to `API_ERRORS`
+- Em dashes replaced with commas/colons per style rules
+- SECURITY.md updated to reflect 0.3.x support
+- CONTRIBUTING.md expanded with all required sections
+- Error code test coverage includes ERR019-ERR023
+
 ## [0.3.0] - 2026-03-15
 
 ### Added
@@ -69,6 +86,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive test suite: unit tests, mocked API tests, and real integration tests
 - Examples: basic usage, OTP flow, bulk SMS, Rails endpoint, error handling, production OTP
 
+[0.3.1]: https://github.com/boxlinknet/kwtsms-ruby/releases/tag/v0.3.1
 [0.3.0]: https://github.com/boxlinknet/kwtsms-ruby/releases/tag/v0.3.0
 [0.2.0]: https://github.com/boxlinknet/kwtsms-ruby/releases/tag/v0.2.0
 [0.1.0]: https://github.com/boxlinknet/kwtsms-ruby/releases/tag/v0.1.0
