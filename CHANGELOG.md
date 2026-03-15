@@ -31,7 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Raw API example (`examples/00_raw_api.rb`) — call all 7 kwtSMS endpoints using only Ruby stdlib, no gem needed
+- Raw API example (`examples/00_raw_api.rb`): call all 7 kwtSMS endpoints using only Ruby stdlib, no gem needed
 - Step-by-step guide (`examples/00_raw_api.md`) with helper function reference, endpoints table, key rules, and going-live checklist
 
 ### Removed

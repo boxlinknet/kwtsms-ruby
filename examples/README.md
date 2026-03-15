@@ -2,7 +2,7 @@
 
 | # | Example | Description |
 |---|---------|-------------|
-| 00 | [Raw API](00_raw_api.rb) | Call all 7 endpoints directly — no gem needed |
+| 00 | [Raw API](00_raw_api.rb) | Call all 7 endpoints directly, no gem needed |
 | 01 | [Basic Usage](01_basic_usage.rb) | Connect, verify, send SMS, validate numbers |
 | 02 | [OTP Flow](02_otp_flow.rb) | Send OTP codes with proper formatting |
 | 03 | [Bulk SMS](03_bulk_sms.rb) | Send to many recipients with auto-batching |
