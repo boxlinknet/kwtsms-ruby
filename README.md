@@ -1,8 +1,12 @@
 # kwtSMS Ruby Client
 
 [![Gem Version](https://img.shields.io/gem/v/kwtsms.svg)](https://rubygems.org/gems/kwtsms)
+[![Gem Downloads](https://img.shields.io/gem/dt/kwtsms.svg)](https://rubygems.org/gems/kwtsms)
 [![CI](https://github.com/boxlinknet/kwtsms-ruby/actions/workflows/ci.yml/badge.svg)](https://github.com/boxlinknet/kwtsms-ruby/actions/workflows/ci.yml)
-[![Security Audit](https://github.com/boxlinknet/kwtsms-ruby/actions/workflows/codeql.yml/badge.svg)](https://github.com/boxlinknet/kwtsms-ruby/actions/workflows/codeql.yml)
+[![CodeQL](https://github.com/boxlinknet/kwtsms-ruby/actions/workflows/codeql.yml/badge.svg)](https://github.com/boxlinknet/kwtsms-ruby/actions/workflows/codeql.yml)
+[![Bundle Audit](https://github.com/boxlinknet/kwtsms-ruby/actions/workflows/audit.yml/badge.svg)](https://github.com/boxlinknet/kwtsms-ruby/actions/workflows/audit.yml)
+[![GitGuardian](https://github.com/boxlinknet/kwtsms-ruby/actions/workflows/gitguardian.yml/badge.svg)](https://github.com/boxlinknet/kwtsms-ruby/actions/workflows/gitguardian.yml)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/boxlinknet/kwtsms-ruby/badge)](https://scorecard.dev/viewer/?uri=github.com/boxlinknet/kwtsms-ruby)
 [![Ruby](https://img.shields.io/badge/Ruby-%3E%3D%202.7-red.svg)](https://www.ruby-lang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 

@@ -70,7 +70,8 @@ module KwtSMS
       write_log(log_file, log_entry)
       raise RuntimeError, err
 
-    rescue SocketError, Errno::ECONNREFUSED, Errno::EHOSTUNREACH, IOError => e
+    rescue SocketError, Errno::ECONNREFUSED, Errno::EHOSTUNREACH, Errno::ENETUNREACH,
+           Errno::ECONNRESET, Errno::EPIPE, OpenSSL::SSL::SSLError, IOError => e
       err = "Network error: #{e.message}"
       log_entry["error"] = err
       write_log(log_file, log_entry)
