@@ -20,10 +20,11 @@ jobs:
       - name: Detect version change
         id: version
         run: |
-          NEW_VERSION=$(grep -oP "VERSION\s*=\s*\"\K[^\"]+\" lib/kwtsms/version.rb | tr -d '"')
-          OLD_VERSION=$(git show HEAD~1:lib/kwtsms/version.rb 2>/dev/null | grep -oP "VERSION\s*=\s*\"\K[^\"]+\"" | tr -d '"' || echo "")
+          NEW_VERSION=$(sed -n 's/.*VERSION *= *"\([^"]*\)".*/\1/p' lib/kwtsms/version.rb)
+          OLD_VERSION=$(git show HEAD~1:lib/kwtsms/version.rb 2>/dev/null | sed -n 's/.*VERSION *= *"\([^"]*\)".*/\1/p' || echo "")
           echo "new=$NEW_VERSION" >> "$GITHUB_OUTPUT"
           echo "old=$OLD_VERSION" >> "$GITHUB_OUTPUT"
+          echo "Detected: old=$OLD_VERSION new=$NEW_VERSION"
           if [ "$NEW_VERSION" != "$OLD_VERSION" ] && [ -n "$NEW_VERSION" ]; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
           else
